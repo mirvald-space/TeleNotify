@@ -1,4 +1,3 @@
-# app/bot/handlers.py
 from aiogram import Dispatcher, types
 
 
