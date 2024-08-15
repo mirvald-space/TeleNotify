@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - '8000:8000'
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - GROUP_IDS=${GROUP_IDS}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+    volumes:
+      - .:/app
