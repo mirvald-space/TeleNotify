@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 
 from aiogram import Bot
@@ -26,6 +27,17 @@ class NotificationMessage(BaseModel):
         None, description="Slack Markdown option (ignored for Telegram)")
 
 
+def detect_format(text: str) -> str:
+    # Check for HTML tags
+    if re.search(r'<[^>]+>', text):
+        return 'html'
+    # Check for Markdown-style formatting
+    elif re.search(r'\*\*.*\*\*|\*.*\*|__.*__|_.*_|`.*`', text):
+        return 'markdown'
+    else:
+        return 'plain'
+
+
 async def get_bot():
     bot = Bot(token=Config.BOT_TOKEN)
     try:
@@ -48,7 +60,9 @@ async def send_notification(
         raise HTTPException(
             status_code=400, detail="Message text cannot be empty")
 
-    success = await send_notification_to_groups(bot, message_text)
+    message_format = detect_format(message_text)
+
+    success = await send_notification_to_groups(bot, message_text, message_format)
 
     if success:
         return {"status": "success", "message": "Notification sent to all groups"}
