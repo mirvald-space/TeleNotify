@@ -1,7 +1,7 @@
 from typing import Optional
 
 from aiogram import Bot
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.config import Config
@@ -11,9 +11,9 @@ router = APIRouter()
 
 
 class NotificationMessage(BaseModel):
-    message: Optional[str] = Field(None, description="Main message content")
-    text: Optional[str] = Field(
-        None, description="Alternative to 'message' for Slack compatibility")
+    text: Optional[str] = Field(None, description="Main message content")
+    message: Optional[str] = Field(
+        None, description="Alternative to 'text' for backwards compatibility")
     channel: Optional[str] = Field(
         None, description="Slack channel (ignored for Telegram)")
     username: Optional[str] = Field(
@@ -25,9 +25,6 @@ class NotificationMessage(BaseModel):
     mrkdwn: Optional[bool] = Field(
         None, description="Slack Markdown option (ignored for Telegram)")
 
-    def get_message(self) -> str:
-        return self.message or self.text or ""
-
 
 async def get_bot():
     bot = Bot(token=Config.BOT_TOKEN)
@@ -38,12 +35,20 @@ async def get_bot():
 
 
 @router.post("/send_notification")
-async def send_notification(notification: NotificationMessage, bot: Bot = Depends(get_bot)):
-    message = notification.get_message()
-    if not message:
-        raise HTTPException(status_code=400, detail="Message cannot be empty")
+async def send_notification(
+    notification: Optional[NotificationMessage] = None,
+    text: Optional[str] = Query(
+        None, description="Message text (can be provided as query parameter)"),
+    bot: Bot = Depends(get_bot)
+):
+    message_text = text or (notification.text if notification else None) or (
+        notification.message if notification else None)
 
-    success = await send_notification_to_groups(bot, message)
+    if not message_text:
+        raise HTTPException(
+            status_code=400, detail="Message text cannot be empty")
+
+    success = await send_notification_to_groups(bot, message_text)
 
     if success:
         return {"status": "success", "message": "Notification sent to all groups"}
