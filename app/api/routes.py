@@ -2,7 +2,8 @@ import re
 from typing import Optional
 
 from aiogram import Bot
-from fastapi import APIRouter, Depends, HTTPException, Query
+from aiogram.enums import ParseMode
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.config import Config
@@ -15,27 +16,16 @@ class NotificationMessage(BaseModel):
     text: Optional[str] = Field(None, description="Main message content")
     message: Optional[str] = Field(
         None, description="Alternative to 'text' for backwards compatibility")
-    channel: Optional[str] = Field(
-        None, description="Slack channel (ignored for Telegram)")
-    username: Optional[str] = Field(
-        None, description="Slack username (ignored for Telegram)")
-    icon_emoji: Optional[str] = Field(
-        None, description="Slack icon emoji (ignored for Telegram)")
-    link_names: Optional[bool] = Field(
-        None, description="Slack link names option (ignored for Telegram)")
-    mrkdwn: Optional[bool] = Field(
-        None, description="Slack Markdown option (ignored for Telegram)")
+    format: Optional[str] = Field(
+        None, description="Message format: 'plain', 'html', or 'markdown'. If not provided, it will be auto-detected.")
 
 
 def detect_format(text: str) -> str:
-    # Check for HTML tags
     if re.search(r'<[^>]+>', text):
         return 'html'
-    # Check for Markdown-style formatting
-    elif re.search(r'\*\*.*\*\*|\*.*\*|__.*__|_.*_|`.*`', text):
+    elif re.search(r'\*.*\*|_.*_|\[.*\]\(.*\)', text):
         return 'markdown'
-    else:
-        return 'plain'
+    return 'plain'
 
 
 async def get_bot():
@@ -49,8 +39,7 @@ async def get_bot():
 @router.post("/send_notification")
 async def send_notification(
     notification: Optional[NotificationMessage] = None,
-    text: Optional[str] = Query(
-        None, description="Message text (can be provided as query parameter)"),
+    text: Optional[str] = None,
     bot: Bot = Depends(get_bot)
 ):
     message_text = text or (notification.text if notification else None) or (
@@ -60,9 +49,17 @@ async def send_notification(
         raise HTTPException(
             status_code=400, detail="Message text cannot be empty")
 
-    message_format = detect_format(message_text)
+    message_format = notification.format if notification and notification.format else detect_format(
+        message_text)
 
-    success = await send_notification_to_groups(bot, message_text, message_format)
+    if message_format == 'html':
+        parse_mode = ParseMode.HTML
+    elif message_format == 'markdown':
+        parse_mode = ParseMode.MARKDOWN
+    else:
+        parse_mode = None
+
+    success = await send_notification_to_groups(bot, message_text, parse_mode)
 
     if success:
         return {"status": "success", "message": "Notification sent to all groups"}

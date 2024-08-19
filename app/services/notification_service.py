@@ -1,4 +1,5 @@
 import logging
+import re
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
@@ -9,16 +10,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-async def send_notification_to_groups(bot: Bot, message: str, format: str) -> bool:
+def escape_special_characters(text: str, format: str) -> str:
+    if format == 'html':
+        return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    elif format == 'markdown':
+        special_chars = '_*[]()~`>#+-=|{}.!'
+        return ''.join('\\' + char if char in special_chars else char for char in text)
+    else:
+        return text
+
+
+async def send_notification_to_groups(bot: Bot, message: str, parse_mode: ParseMode) -> bool:
     logger.info(f"Attempting to send message: {message}")
     all_success = True
-
-    if format == 'html':
-        parse_mode = ParseMode.HTML
-    elif format == 'markdown':
-        parse_mode = ParseMode.MARKDOWN_V2
-    else:
-        parse_mode = None
 
     for group_id in Config.GROUP_IDS:
         try:

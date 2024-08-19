@@ -1,4 +1,5 @@
 import pytest
+from aiogram.enums import ParseMode
 from fastapi import status
 
 from app.config import Config
@@ -6,7 +7,6 @@ from app.config import Config
 
 @pytest.fixture
 def mock_config(mocker):
-    # Mock group IDs for testing
     mocker.patch.object(Config, 'GROUP_IDS', [-1001, -1002])
 
 
@@ -85,39 +85,91 @@ async def test_send_notification_text_priority(client, mocker, mock_config):
 
 
 @pytest.mark.asyncio
-async def test_send_notification_with_slack_params(client, mocker, mock_config):
+async def test_send_notification_with_html_format(client, mocker, mock_config):
     mock_bot = mocker.AsyncMock()
     mocker.patch('app.api.routes.Bot', return_value=mock_bot)
 
-    response = client.post("/send_notification", json={
-        "text": "Test notification with Slack params",
-        "channel": "#test-channel",
-        "username": "test-bot",
-        "icon_emoji": ":test:",
-        "link_names": True,
-        "mrkdwn": True
-    })
+    html_message = "<b>Bold</b> and <i>italic</i> text with <a href='http://example.com'>link</a>"
+    response = client.post("/send_notification",
+                           json={"text": html_message, "format": "html"})
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"status": "success",
                                "message": "Notification sent to all groups"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text="Test notification with Slack params", parse_mode=None)
+        chat_id=-1001, text=html_message, parse_mode=ParseMode.HTML)
     mock_bot.send_message.assert_any_call(
-        chat_id=-1002, text="Test notification with Slack params", parse_mode=None)
+        chat_id=-1002, text=html_message, parse_mode=ParseMode.HTML)
 
 
-def test_send_notification_empty_message(client):
+@pytest.mark.asyncio
+async def test_send_notification_with_markdown_format(client, mocker, mock_config):
+    mock_bot = mocker.AsyncMock()
+    mocker.patch('app.api.routes.Bot', return_value=mock_bot)
+
+    markdown_message = "*Bold* and _italic_ text with [link](http://example.com)"
+    response = client.post(
+        "/send_notification", json={"text": markdown_message, "format": "markdown"})
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"status": "success",
+                               "message": "Notification sent to all groups"}
+    assert mock_bot.send_message.call_count == 2
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1001, text=markdown_message, parse_mode=ParseMode.MARKDOWN)
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1002, text=markdown_message, parse_mode=ParseMode.MARKDOWN)
+
+
+@pytest.mark.asyncio
+async def test_send_notification_with_special_characters(client, mocker, mock_config):
+    mock_bot = mocker.AsyncMock()
+    mocker.patch('app.api.routes.Bot', return_value=mock_bot)
+
+    special_chars_message = "Special characters: . ! @ # $ % ^ & * ( ) _ + { } | : \" < > ?"
+    response = client.post("/send_notification",
+                           json={"text": special_chars_message})
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"status": "success",
+                               "message": "Notification sent to all groups"}
+    assert mock_bot.send_message.call_count == 2
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1001, text=special_chars_message, parse_mode=ParseMode.HTML)
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1002, text=special_chars_message, parse_mode=ParseMode.HTML)
+
+
+@pytest.mark.asyncio
+async def test_send_notification_with_urls(client, mocker, mock_config):
+    mock_bot = mocker.AsyncMock()
+    mocker.patch('app.api.routes.Bot', return_value=mock_bot)
+
+    url_message = "Check out this link: https://www.example.com"
+    response = client.post("/send_notification", json={"text": url_message})
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"status": "success",
+                               "message": "Notification sent to all groups"}
+    assert mock_bot.send_message.call_count == 2
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1001, text=url_message, parse_mode=None)
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1002, text=url_message, parse_mode=None)
+
+
+@pytest.mark.asyncio
+async def test_send_notification_empty_message(client):
     response = client.post("/send_notification", json={"text": ""})
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json() == {"detail": "Message text cannot be empty"}
 
 
-def test_send_notification_missing_text(client):
+@pytest.mark.asyncio
+async def test_send_notification_missing_text(client):
     response = client.post("/send_notification", json={
-        "channel": "#test-channel",
-        "username": "test-bot"
+        "format": "plain"
     })
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json() == {"detail": "Message text cannot be empty"}
@@ -138,10 +190,7 @@ async def test_send_notification_failure(client, mocker, mock_config):
 
 
 @pytest.mark.asyncio
-async def test_send_notification_empty_query(client, mocker, mock_config):
-    mock_bot = mocker.AsyncMock()
-    mocker.patch('app.api.routes.Bot', return_value=mock_bot)
-
+async def test_send_notification_empty_query(client):
     response = client.post("/send_notification?text=")
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -164,3 +213,32 @@ async def test_send_notification_query_priority(client, mocker, mock_config):
         chat_id=-1001, text="Query text", parse_mode=None)
     mock_bot.send_message.assert_any_call(
         chat_id=-1002, text="Query text", parse_mode=None)
+
+
+@pytest.mark.asyncio
+async def test_send_notification_with_auto_detection(client, mocker, mock_config):
+    mock_bot = mocker.AsyncMock()
+    mocker.patch('app.api.routes.Bot', return_value=mock_bot)
+
+    html_message = "<b>Bold</b> text"
+    markdown_message = "*Bold* text"
+    plain_message = "Plain text"
+
+    responses = [
+        client.post("/send_notification", json={"text": html_message}),
+        client.post("/send_notification", json={"text": markdown_message}),
+        client.post("/send_notification", json={"text": plain_message})
+    ]
+
+    for response in responses:
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"status": "success",
+                                   "message": "Notification sent to all groups"}
+
+    assert mock_bot.send_message.call_count == 6
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1001, text=html_message, parse_mode=ParseMode.HTML)
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1001, text=markdown_message, parse_mode=ParseMode.MARKDOWN)
+    mock_bot.send_message.assert_any_call(
+        chat_id=-1001, text=plain_message, parse_mode=None)
