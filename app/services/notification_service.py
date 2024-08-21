@@ -21,14 +21,20 @@ def escape_special_characters(text: str, format: str) -> str:
 
 
 async def send_notification_to_groups(bot: Bot, message: str, parse_mode: ParseMode) -> bool:
-    logger.info(f"Attempting to send message: {message}")
+    logger.info(f"Попытка отправить сообщение: {message}")
     all_success = True
+
+    # Определяем формат на основе parse_mode
+    format = 'html' if parse_mode == ParseMode.HTML else 'markdown' if parse_mode == ParseMode.MARKDOWN else 'plain'
+
+    # Экранируем специальные символы
+    escaped_message = escape_special_characters(message, format)
 
     for group_id in Config.GROUP_IDS:
         try:
-            await bot.send_message(chat_id=group_id, text=message, parse_mode=parse_mode)
-            logger.info(f"Successfully sent message to group {group_id}")
+            await bot.send_message(chat_id=group_id, text=escaped_message, parse_mode=parse_mode)
+            logger.info(f"Сообщение успешно отправлено в группу {group_id}")
         except Exception as e:
-            logger.error(f"Error sending message to group {group_id}: {e}")
+            logger.error(f"Ошибка отправки сообщения в группу {group_id}: {e}")
             all_success = False
     return all_success
