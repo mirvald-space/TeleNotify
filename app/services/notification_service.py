@@ -21,7 +21,7 @@ def escape_special_characters(text: str, format: str) -> str:
 
 
 async def send_notification_to_groups(bot: Bot, message: str, parse_mode: ParseMode) -> bool:
-    logger.info(f"Попытка отправить сообщение: {message}")
+    logger.info(f"Attempting to send a message: {message}")
     all_success = True
 
     # Определяем формат на основе parse_mode
@@ -33,8 +33,8 @@ async def send_notification_to_groups(bot: Bot, message: str, parse_mode: ParseM
     for group_id in Config.GROUP_IDS:
         try:
             await bot.send_message(chat_id=group_id, text=escaped_message, parse_mode=parse_mode)
-            logger.info(f"Сообщение успешно отправлено в группу {group_id}")
+            logger.info(f"Message successfully sent to the group {group_id}")
         except Exception as e:
-            logger.error(f"Ошибка отправки сообщения в группу {group_id}: {e}")
+            logger.error(f"Error sending a message to a group {group_id}: {e}")
             all_success = False
     return all_success
