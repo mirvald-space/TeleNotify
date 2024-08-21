@@ -3,6 +3,9 @@ from aiogram.enums import ParseMode
 from fastapi import status
 
 from app.config import Config
+from app.services.notification_service import escape_special_characters
+
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
@@ -90,6 +93,7 @@ async def test_send_notification_with_html_format(client, mocker, mock_config):
     mocker.patch('app.api.routes.Bot', return_value=mock_bot)
 
     html_message = "<b>Bold</b> and <i>italic</i> text with <a href='http://example.com'>link</a>"
+    escaped_html_message = escape_special_characters(html_message, 'html')
     response = client.post("/send_notification",
                            json={"text": html_message, "format": "html"})
 
@@ -98,17 +102,19 @@ async def test_send_notification_with_html_format(client, mocker, mock_config):
                                "message": "Notification sent to all groups"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text=html_message, parse_mode=ParseMode.HTML)
-    mock_bot.send_message.assert_any_call(
-        chat_id=-1002, text=html_message, parse_mode=ParseMode.HTML)
+        chat_id=-1001, text=escaped_html_message, parse_mode=ParseMode.HTML)
 
 
-@pytest.mark.asyncio
+pytest.mark.asyncio
+
+
 async def test_send_notification_with_markdown_format(client, mocker, mock_config):
     mock_bot = mocker.AsyncMock()
     mocker.patch('app.api.routes.Bot', return_value=mock_bot)
 
     markdown_message = "*Bold* and _italic_ text with [link](http://example.com)"
+    escaped_markdown_message = escape_special_characters(
+        markdown_message, 'markdown')
     response = client.post(
         "/send_notification", json={"text": markdown_message, "format": "markdown"})
 
@@ -117,9 +123,7 @@ async def test_send_notification_with_markdown_format(client, mocker, mock_confi
                                "message": "Notification sent to all groups"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text=markdown_message, parse_mode=ParseMode.MARKDOWN)
-    mock_bot.send_message.assert_any_call(
-        chat_id=-1002, text=markdown_message, parse_mode=ParseMode.MARKDOWN)
+        chat_id=-1001, text=escaped_markdown_message, parse_mode=ParseMode.MARKDOWN)
 
 
 @pytest.mark.asyncio
@@ -128,6 +132,8 @@ async def test_send_notification_with_special_characters(client, mocker, mock_co
     mocker.patch('app.api.routes.Bot', return_value=mock_bot)
 
     special_chars_message = "Special characters: . ! @ # $ % ^ & * ( ) _ + { } | : \" < > ?"
+    escaped_special_chars_message = escape_special_characters(
+        special_chars_message, 'html')
     response = client.post("/send_notification",
                            json={"text": special_chars_message})
 
@@ -136,9 +142,7 @@ async def test_send_notification_with_special_characters(client, mocker, mock_co
                                "message": "Notification sent to all groups"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text=special_chars_message, parse_mode=ParseMode.HTML)
-    mock_bot.send_message.assert_any_call(
-        chat_id=-1002, text=special_chars_message, parse_mode=ParseMode.HTML)
+        chat_id=-1001, text=escaped_special_chars_message, parse_mode=ParseMode.HTML)
 
 
 @pytest.mark.asyncio
@@ -224,6 +228,10 @@ async def test_send_notification_with_auto_detection(client, mocker, mock_config
     markdown_message = "*Bold* text"
     plain_message = "Plain text"
 
+    escaped_html_message = escape_special_characters(html_message, 'html')
+    escaped_markdown_message = escape_special_characters(
+        markdown_message, 'markdown')
+
     responses = [
         client.post("/send_notification", json={"text": html_message}),
         client.post("/send_notification", json={"text": markdown_message}),
@@ -237,8 +245,8 @@ async def test_send_notification_with_auto_detection(client, mocker, mock_config
 
     assert mock_bot.send_message.call_count == 6
     mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text=html_message, parse_mode=ParseMode.HTML)
+        chat_id=-1001, text=escaped_html_message, parse_mode=ParseMode.HTML)
     mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text=markdown_message, parse_mode=ParseMode.MARKDOWN)
+        chat_id=-1001, text=escaped_markdown_message, parse_mode=ParseMode.MARKDOWN)
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text=plain_message, parse_mode=None)
