@@ -1,13 +1,17 @@
+import logging
 import re
-from typing import Optional
+from typing import List, Optional, Union
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.config import Config
 from app.services.notification_service import send_notification_to_groups
+
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter()
 
@@ -18,6 +22,10 @@ class NotificationMessage(BaseModel):
         None, description="Alternative to 'text' for backwards compatibility")
     format: Optional[str] = Field(
         None, description="Message format: 'plain', 'html', or 'markdown'. If not provided, it will be auto-detected.")
+    bot_id: Optional[str] = Field(
+        None, description="Optional bot token to use for sending the message")
+    chat_id: Optional[Union[int, List[int]]] = Field(
+        None, description="Optional chat ID or list of chat IDs to send the message to")
 
 
 def detect_format(text: str) -> str:
@@ -39,18 +47,25 @@ async def get_bot():
 @router.post("/send_notification")
 async def send_notification(
     notification: Optional[NotificationMessage] = None,
-    text: Optional[str] = None,
+    text: Optional[str] = Query(None),
+    bot_id: Optional[str] = Query(None),
+    chat_id: Optional[Union[int, List[int]]] = Query(None),
     bot: Bot = Depends(get_bot)
 ):
+    # Приоритет: параметры запроса > тело запроса > значения по умолчанию
     message_text = text or (notification.text if notification else None) or (
         notification.message if notification else None)
-
     if not message_text:
         raise HTTPException(
             status_code=400, detail="Message text cannot be empty")
 
-    message_format = notification.format if notification and notification.format else detect_format(
-        message_text)
+    used_bot_id = bot_id or (
+        notification.bot_id if notification else None) or Config.BOT_TOKEN
+    used_chat_id = chat_id or (
+        notification.chat_id if notification else None) or Config.GROUP_IDS
+
+    message_format = (
+        notification.format if notification else None) or detect_format(message_text)
 
     if message_format == 'html':
         parse_mode = ParseMode.HTML
@@ -59,10 +74,26 @@ async def send_notification(
     else:
         parse_mode = None
 
-    success = await send_notification_to_groups(bot, message_text, parse_mode)
-
-    if success:
-        return {"status": "success", "message": "Notification sent to all groups"}
+    # Создаем бота с нужным токеном
+    if used_bot_id != Config.BOT_TOKEN:
+        custom_bot = Bot(token=used_bot_id)
     else:
-        raise HTTPException(
-            status_code=500, detail="Failed to send notification to some groups")
+        custom_bot = bot
+
+    try:
+        # Убедимся, что used_chat_id всегда список
+        if isinstance(used_chat_id, int):
+            used_chat_id = [used_chat_id]
+        elif used_chat_id is None:
+            used_chat_id = Config.GROUP_IDS
+
+        success = await send_notification_to_groups(custom_bot, message_text, parse_mode, used_chat_id)
+
+        if success:
+            return {"status": "success", "message": "Notification sent to all specified groups"}
+        else:
+            raise HTTPException(
+                status_code=500, detail="Failed to send notification to some groups")
+    finally:
+        if used_bot_id != Config.BOT_TOKEN:
+            await custom_bot.session.close()
