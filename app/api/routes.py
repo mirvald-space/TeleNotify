@@ -46,6 +46,11 @@ async def get_bot():
         await bot.session.close()
 
 
+@router.get("/")
+async def root():
+    return {"message": "Welcome to the API!"}
+
+
 @router.post("/send_notification")
 async def send_notification(
     notification: Optional[NotificationMessage] = None,
