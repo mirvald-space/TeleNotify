@@ -56,35 +56,57 @@ docker-compose up --build
 ## API Endpoints
 
 - POST `/send_notification`
-  - Body: `{"text": "Your notification message", "format": "plain|html|markdown"}`
+  - Query Parameters:
+    - `text`: The notification message (required)
+    - `bot_id`: Custom bot token (optional)
+    - `chat_id`: Custom chat ID or list of chat IDs (optional)
+    - `format`: Message format ('plain', 'html', or 'markdown') (optional)
+  - Body: JSON object with the same fields as query parameters (optional)
+
+### Usage Examples
+
+1. Basic notification:
+
+   ```
+   curl -X POST "http://localhost:8000/send_notification?text=Hello, World!"
+   ```
+
+2. Using custom bot and chat:
+
+   ```
+   curl -X POST "http://localhost:8000/send_notification?text=Custom notification&bot_id=your_custom_bot_token&chat_id=-1001234567890"
+   ```
+
+3. Sending HTML-formatted message:
+
+   ```
+   curl -X POST "http://localhost:8000/send_notification" \
+        -H "Content-Type: application/json" \
+        -d '{"text": "<b>Bold text</b> and <i>italic</i>", "format": "html"}'
+   ```
+
+4. Sending to multiple chats:
+   ```
+   curl -X POST "http://localhost:8000/send_notification" \
+        -H "Content-Type: application/json" \
+        -d '{"text": "Multi-chat message", "chat_id": [-1001234567890, -1009876543210]}'
+   ```
+
+## Advanced Usage
+
+You can specify custom bot tokens and chat IDs for each notification. This allows you to use different bots or send to specific chats without changing the server configuration.
+
+- If `bot_id` is not specified, the default bot from the environment variables will be used.
+- If `chat_id` is not specified, the notification will be sent to all groups specified in the environment variables.
+- You can provide parameters either as query parameters or in the JSON body of the request.
 
 ## Testing
 
-The project includes a comprehensive test suite to ensure the reliability and correctness of the notification service. The tests cover various scenarios including:
-
-1. Sending notifications with different message formats (plain text, HTML, Markdown)
-2. Auto-detection of message format
-3. Handling of special characters
-4. Error cases (empty messages, missing text)
-5. Query parameter and JSON body interactions
-
-To run the tests, use the following command:
+The project includes a comprehensive test suite. To run the tests:
 
 ```
 pytest -v
 ```
-
-The test suite is located in the `tests/test_api.py` file. It uses pytest and pytest-asyncio for asynchronous test support.
-
-Key test scenarios include:
-
-- Sending notifications via query parameters and request body
-- Testing different message formats (plain, HTML, Markdown)
-- Verifying correct handling of special characters
-- Checking error responses for invalid inputs
-- Testing auto-detection of message format
-
-For more details on the tests, refer to the `tests/test_api.py` file.
 
 ## Development
 
