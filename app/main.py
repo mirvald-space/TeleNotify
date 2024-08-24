@@ -11,6 +11,7 @@ from app.api.routes import router as api_router
 from app.api.routes import router as root_router
 from app.bot.handlers import register_handlers
 from app.config import Config
+from app.utils.chat_logger import log_available_chats
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,6 +40,9 @@ async def lifespan(app: FastAPI):
         if webhook_info.url != WEBHOOK_URL:
             await bot.set_webhook(url=WEBHOOK_URL)
         logger.info(f"Webhook set to URL: {WEBHOOK_URL}")
+
+        # Log available chats
+        await log_available_chats(bot)
 
     webhook_handler.bot = bot
 
