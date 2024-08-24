@@ -26,6 +26,8 @@ class NotificationMessage(BaseModel):
         None, description="Optional bot token to use for sending the message")
     chat_id: Optional[Union[int, List[int]]] = Field(
         None, description="Optional chat ID or list of chat IDs to send the message to")
+    topic_id: Optional[int] = Field(
+        None, description="Optional topic ID for sending to a specific group topic")
 
 
 def detect_format(text: str) -> str:
@@ -50,9 +52,9 @@ async def send_notification(
     text: Optional[str] = Query(None),
     bot_id: Optional[str] = Query(None),
     chat_id: Optional[Union[int, List[int]]] = Query(None),
+    topic_id: Optional[int] = Query(None),
     bot: Bot = Depends(get_bot)
 ):
-    # Приоритет: параметры запроса > тело запроса > значения по умолчанию
     message_text = text or (notification.text if notification else None) or (
         notification.message if notification else None)
     if not message_text:
@@ -63,6 +65,8 @@ async def send_notification(
         notification.bot_id if notification else None) or Config.BOT_TOKEN
     used_chat_id = chat_id or (
         notification.chat_id if notification else None) or Config.GROUP_IDS
+    used_topic_id = topic_id or (
+        notification.topic_id if notification else None)
 
     message_format = (
         notification.format if notification else None) or detect_format(message_text)
@@ -74,26 +78,24 @@ async def send_notification(
     else:
         parse_mode = None
 
-    # Создаем бота с нужным токеном
     if used_bot_id != Config.BOT_TOKEN:
         custom_bot = Bot(token=used_bot_id)
     else:
         custom_bot = bot
 
     try:
-        # Убедимся, что used_chat_id всегда список
         if isinstance(used_chat_id, int):
             used_chat_id = [used_chat_id]
         elif used_chat_id is None:
             used_chat_id = Config.GROUP_IDS
 
-        success = await send_notification_to_groups(custom_bot, message_text, parse_mode, used_chat_id)
+        success = await send_notification_to_groups(custom_bot, message_text, parse_mode, used_chat_id, used_topic_id)
 
         if success:
-            return {"status": "success", "message": "Notification sent to all specified groups"}
+            return {"status": "success", "message": "Notification sent to all specified groups/topics"}
         else:
             raise HTTPException(
-                status_code=500, detail="Failed to send notification to some groups")
+                status_code=500, detail="Failed to send notification to some groups/topics")
     finally:
         if used_bot_id != Config.BOT_TOKEN:
             await custom_bot.session.close()

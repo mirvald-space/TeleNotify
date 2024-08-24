@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import List
+from typing import List, Optional
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
@@ -21,24 +21,25 @@ def escape_special_characters(text: str, format: str) -> str:
         return text
 
 
-async def send_notification_to_groups(bot: Bot, message: str, parse_mode: ParseMode, chat_ids: List[int]) -> bool:
-    logger.info(f"Sending notification: message='{
-                message}', parse_mode={parse_mode}, chat_ids={chat_ids}")
+async def send_notification_to_groups(bot: Bot, message: str, parse_mode: ParseMode, chat_ids: List[int], topic_id: Optional[int] = None) -> bool:
+    logger.info(f"Sending notification: message='{message}', parse_mode={
+                parse_mode}, chat_ids={chat_ids}, topic_id={topic_id}")
     all_success = True
 
-    # Определяем формат на основе parse_mode
     format = 'html' if parse_mode == ParseMode.HTML else 'markdown' if parse_mode == ParseMode.MARKDOWN else 'plain'
-    logger.info(f"Using format: {format}")
-
-    # Экранируем специальные символы
     escaped_message = escape_special_characters(message, format)
-    logger.info(f"Escaped message: '{escaped_message}'")
 
     for chat_id in chat_ids:
         try:
-            await bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode=parse_mode)
-            logger.info(f"Message successfully sent to the chat {chat_id}")
+            if topic_id:
+                await bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode=parse_mode, message_thread_id=topic_id)
+                logger.info(f"Message successfully sent to chat {
+                            chat_id}, topic {topic_id}")
+            else:
+                await bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode=parse_mode)
+                logger.info(f"Message successfully sent to chat {chat_id}")
         except Exception as e:
-            logger.error(f"Error sending a message to a chat {chat_id}: {e}")
+            logger.error(f"Error sending message to chat {
+                         chat_id}, topic {topic_id}: {e}")
             all_success = False
     return all_success

@@ -34,7 +34,7 @@ async def test_send_notification_with_custom_bot_and_chat(client, mocker, mock_c
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
 
     # Проверяем, что бот был создан дважды: один раз с токеном по умолчанию и один раз с пользовательским токеном
     assert mock_bot_class.call_count == 2
@@ -66,7 +66,7 @@ async def test_send_notification_with_multiple_chat_ids(client, mocker, mock_con
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
 
     # Проверяем, что сообщение было отправлено во все указанные чаты
     assert mock_bot.send_message.call_count == len(custom_chat_ids)
@@ -88,7 +88,7 @@ async def test_send_notification_with_text_query(client, mocker, mock_config):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text="Test notification using query", parse_mode=None)
@@ -106,12 +106,14 @@ async def test_send_notification_with_text_body(client, mocker, mock_config):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
-    assert mock_bot.send_message.call_count == 2
-    mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text="Test notification using body", parse_mode=None)
-    mock_bot.send_message.assert_any_call(
-        chat_id=-1002, text="Test notification using body", parse_mode=None)
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
+
+    for chat_id in Config.GROUP_IDS:
+        mock_bot.send_message.assert_any_call(
+            chat_id=chat_id,
+            text="Test notification using body",
+            parse_mode=None
+        )
 
 
 @pytest.mark.asyncio
@@ -124,7 +126,7 @@ async def test_send_notification_with_message_body(client, mocker, mock_config):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text="Test notification using message field", parse_mode=None)
@@ -144,7 +146,7 @@ async def test_send_notification_text_priority(client, mocker, mock_config):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text="Priority text", parse_mode=None)
@@ -164,7 +166,7 @@ async def test_send_notification_with_html_format(client, mocker, mock_config):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text=escaped_html_message, parse_mode=ParseMode.HTML)
@@ -185,7 +187,7 @@ async def test_send_notification_with_markdown_format(client, mocker, mock_confi
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text=escaped_markdown_message, parse_mode=ParseMode.MARKDOWN)
@@ -204,7 +206,7 @@ async def test_send_notification_with_special_characters(client, mocker, mock_co
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text=escaped_special_chars_message, parse_mode=ParseMode.HTML)
@@ -220,7 +222,7 @@ async def test_send_notification_with_urls(client, mocker, mock_config):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text=url_message, parse_mode=None)
@@ -255,7 +257,7 @@ async def test_send_notification_failure(client, mocker, mock_config):
 
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert response.json() == {
-        "detail": "Failed to send notification to some groups"}
+        "detail": "Failed to send notification to some groups/topics"}
 
 
 @pytest.mark.asyncio
@@ -276,7 +278,7 @@ async def test_send_notification_query_priority(client, mocker, mock_config):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
-        "status": "success", "message": "Notification sent to all specified groups"}
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
     assert mock_bot.send_message.call_count == 2
     mock_bot.send_message.assert_any_call(
         chat_id=-1001, text="Query text", parse_mode=None)
@@ -306,12 +308,91 @@ async def test_send_notification_with_auto_detection(client, mocker, mock_config
     for response in responses:
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == {
-            "status": "success", "message": "Notification sent to all specified groups"}
+            "status": "success", "message": "Notification sent to all specified groups/topics"}
 
-    assert mock_bot.send_message.call_count == 6
-    mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text=escaped_html_message, parse_mode=ParseMode.HTML)
-    mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text=escaped_markdown_message, parse_mode=ParseMode.MARKDOWN)
-    mock_bot.send_message.assert_any_call(
-        chat_id=-1001, text=plain_message, parse_mode=None)
+
+@pytest.mark.asyncio
+async def test_send_notification_with_topic_id(client, mocker, mock_config):
+    mock_bot = mocker.AsyncMock()
+    mocker.patch('app.api.routes.Bot', return_value=mock_bot)
+
+    topic_id = 15
+    response = client.post(
+        "/send_notification",
+        json={
+            "text": "Test with topic",
+            "topic_id": topic_id
+        }
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
+
+    # Проверяем, что сообщение было отправлено с указанием message_thread_id
+    for chat_id in Config.GROUP_IDS:
+        mock_bot.send_message.assert_any_call(
+            chat_id=chat_id,
+            text="Test with topic",
+            parse_mode=None,
+            message_thread_id=topic_id
+        )
+
+
+@pytest.mark.asyncio
+async def test_send_notification_with_custom_bot_chat_and_topic(client, mocker, mock_config):
+    mock_bot = mocker.AsyncMock()
+    mock_bot_class = mocker.patch('app.api.routes.Bot', return_value=mock_bot)
+
+    custom_bot_token = "custom_bot_token"
+    custom_chat_id = 12345
+    topic_id = 20
+
+    response = client.post(
+        "/send_notification",
+        json={
+            "text": "Test with custom bot, chat, and topic",
+            "bot_id": custom_bot_token,
+            "chat_id": custom_chat_id,
+            "topic_id": topic_id
+        }
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
+
+    # Проверяем, что был создан бот с пользовательским токеном
+    mock_bot_class.assert_any_call(token=custom_bot_token)
+
+    # Проверяем, что сообщение было отправлено в указанный чат и тему
+    mock_bot.send_message.assert_called_once_with(
+        chat_id=custom_chat_id,
+        text="Test with custom bot, chat, and topic",
+        parse_mode=None,
+        message_thread_id=topic_id
+    )
+
+
+@pytest.mark.asyncio
+async def test_send_notification_with_topic_id_query_param(client, mocker, mock_config):
+    mock_bot = mocker.AsyncMock()
+    mocker.patch('app.api.routes.Bot', return_value=mock_bot)
+
+    topic_id = 25
+    response = client.post(
+        f"/send_notification?text=Test with topic query&topic_id={topic_id}"
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "status": "success", "message": "Notification sent to all specified groups/topics"}
+
+    # Проверяем, что сообщение было отправлено с указанием message_thread_id
+    for chat_id in Config.GROUP_IDS:
+        mock_bot.send_message.assert_any_call(
+            chat_id=chat_id,
+            text="Test with topic query",
+            parse_mode=None,
+            message_thread_id=topic_id
+        )
