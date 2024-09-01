@@ -28,6 +28,8 @@ class NotificationMessage(BaseModel):
         None, description="Optional chat ID or list of chat IDs to send the message to")
     topic_id: Optional[int] = Field(
         None, description="Optional topic ID for sending to a specific group topic")
+    reply_to_message_id: Optional[int] = Field(
+        None, description="Optional message ID to reply to")
 
 
 def detect_format(text: str) -> str:
@@ -58,6 +60,7 @@ async def send_notification(
     bot_id: Optional[str] = Query(None),
     chat_id: Optional[Union[int, List[int]]] = Query(None),
     topic_id: Optional[int] = Query(None),
+    reply_to_message_id: Optional[int] = Query(None),
     bot: Bot = Depends(get_bot)
 ):
     message_text = text or (notification.text if notification else None) or (
@@ -72,6 +75,8 @@ async def send_notification(
         notification.chat_id if notification else None) or Config.GROUP_IDS
     used_topic_id = topic_id or (
         notification.topic_id if notification else None)
+    used_reply_to_message_id = reply_to_message_id or (
+        notification.reply_to_message_id if notification else None)
 
     message_format = (
         notification.format if notification else None) or detect_format(message_text)
@@ -94,7 +99,14 @@ async def send_notification(
         elif used_chat_id is None:
             used_chat_id = Config.GROUP_IDS
 
-        success = await send_notification_to_groups(custom_bot, message_text, parse_mode, used_chat_id, used_topic_id)
+        success = await send_notification_to_groups(
+            custom_bot,
+            message_text,
+            parse_mode,
+            used_chat_id,
+            used_topic_id,
+            used_reply_to_message_id
+        )
 
         if success:
             return {"status": "success", "message": "Notification sent to all specified groups/topics"}
